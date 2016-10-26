@@ -55,7 +55,9 @@ class BaseDevice():
 def check_params(*params):
     def func_decorator(func):
         def func_wrapper(self, *args, **kwargs):
-            self.checkParams(kwargs, params)
+            for p in params:
+                if not p in kwargs.keys():
+                    raise Exception('Missing parameter %s' % p)
             return func(self, *args, **kwargs)
         return func_wrapper
     return func_decorator
@@ -68,11 +70,6 @@ class RawDevice(BaseDevice):
         - WRITE_EE
         - READ_ALL
     '''
-
-    def checkParams(self, kwargs, params):
-        for p in params:
-            if not p in kwargs.keys():
-                raise Exception('Missing parameter %s' % p)
 
     @check_params('Set_bmap', 'Clear_bmap')
     def set_clear_outputs(self, **kwargs):
