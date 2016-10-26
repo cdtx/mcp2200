@@ -11,7 +11,7 @@ setup(
     ],
     packages = ('cdtx.mcp2200',),
     namespace_packages = ('cdtx',),
-    install_requires = []
+    install_requires = ['pyusb']
 )
 
 
