@@ -95,8 +95,8 @@ class RawDevice(BaseDevice):
 
         data = [0]*16
         data[0] = 0x08
-        data[11] = Set_bmap
-        data[12] = Clear_bmap
+        data[11] = kwargs['Set_bmap']
+        data[12] = kwargs['Clear_bmap']
         return self.write(data)
 
     @check_params('IO_bmap', 'Config_Alt_Pins', 'IO_Default_Val_bmap', 'Config_Alt_Options', 'Baud_H', 'Baud_L')
@@ -116,12 +116,12 @@ MCP2200 after exiting the Reset mode
         '''
         data = [0]*16
         data[0] = 0x10
-        data[4] = IO_bmap            
-        data[5] = Config_Alt_Pins    
-        data[6] = IO_Default_Val_bmap
-        data[7] = Config_Alt_Options 
-        data[8] = Baud_H             
-        data[9] = Baud_L             
+        data[4] = kwargs['IO_bmap']
+        data[5] = kwargs['Config_Alt_Pins']
+        data[6] = kwargs['IO_Default_Val_bmap']
+        data[7] = kwargs['Config_Alt_Options']
+        data[8] = kwargs['Baud_H']
+        data[9] = kwargs['Baud_L']
         return self.write(data)
 
 
@@ -146,7 +146,7 @@ MCP2200 after exiting the Reset mode
         '''
         data = [0]*16
         data[0] = 0x20
-        data[1] = EEP_Addr           
+        data[1] = kwargs['EEP_Addr']
         self.write(data)
         r = self.read()
         return {key:r[value] for (key, value) in {'EEP_Addr':1, 'EEP_Val':3}.items()}
@@ -164,8 +164,8 @@ MCP2200 after exiting the Reset mode
             '''
         data = [0]*16
         data[0] = 0x40
-        data[1] = EEP_Addr
-        data[2] = EEP_Val
+        data[1] = kwargs['EEP_Addr']
+        data[2] = kwargs['EEP_Val']
         self.write(data)
 
     def read_all(self, **kwargs):
@@ -198,4 +198,6 @@ if __name__ == '__main__':
 
     config = x.read_all()
     print(config)
+    config['Config_Alt_Pins'] = 0x7F
+    x.configure(**config)
 
