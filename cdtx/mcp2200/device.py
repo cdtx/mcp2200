@@ -52,6 +52,14 @@ class BaseDevice():
     def write(self, data):
         self.dev.write(self.epOut.bEndpointAddress, data)
 
+def check_params(*params):
+    def func_decorator(func):
+        def func_wrapper(self, *args, **kwargs):
+            self.checkParams(kwargs, params)
+            return func(self, *args, **kwargs)
+        return func_wrapper
+    return func_decorator
+
 class RawDevice(BaseDevice):
     ''' Implements the basic supported HID commands :
         - SET_CLEAR_OUTPUTS
@@ -61,7 +69,13 @@ class RawDevice(BaseDevice):
         - READ_ALL
     '''
 
-    def set_clear_outputs(self, Set_bmap, Clear_bmap):
+    def checkParams(self, kwargs, params):
+        for p in params:
+            if not p in kwargs.keys():
+                raise Exception('Missing parameter %s' % p)
+
+    @check_params('Set_bmap', 'Clear_bmap')
+    def set_clear_outputs(self, **kwargs):
         ''' The 
             SET_CLEAR_OUTPUTS
                command   is   used   for
@@ -77,13 +91,16 @@ class RawDevice(BaseDevice):
             Clear_bmap  Bitmap for clearing the corresponding GPIOs
             ==========  ===========================================
         '''
+        checkParams(('Set_bmap', 'Clear_bmap'))
+
         data = [0]*16
         data[0] = 0x08
-        data[11] = set_bmap
-        data[12] = clear_bmap
+        data[11] = Set_bmap
+        data[12] = Clear_bmap
         return self.write(data)
 
-    def configure(self, IO_bmap, Config_Alt_Pins, IO_Default_Val_bmap, Config_Alt_Options, Baud_H, Baud_L):
+    @check_params('IO_bmap', 'Config_Alt_Pins', 'IO_Default_Val_bmap', 'Config_Alt_Options', 'Baud_H', 'Baud_L')
+    def configure(self, **kwargs):
         ''' This  command  is  used  to  establish  the  configuration
 parameters  that  are  stored  in  NVRAM,  used  by  the
 MCP2200 after exiting the Reset mode
@@ -108,7 +125,8 @@ MCP2200 after exiting the Reset mode
         return self.write(data)
 
 
-    def read_ee(self, EEP_Addr):
+    @check_params('EEP_Addr')
+    def read_ee(self, **kwargs):
         ''' The  READ_EE  command  is  used  to  read  a  single
             EEPROM  memory  location  (1 byte)  out  of  a  total  of
             256 bytes  of  the  user’s  EEPROM.  The  MCP2200
@@ -133,7 +151,8 @@ MCP2200 after exiting the Reset mode
         r = self.read()
         return {key:r[value] for (key, value) in {'EEP_Addr':1, 'EEP_Val':3}.items()}
 
-    def write_ee(self, EEP_Addr, EEP_Val):
+    @check_params('EEP_Addr', 'EEP_Val')
+    def write_ee(self, **kwargs):
         ''' The  WRITE_EE  command  is  used  to  write  a  single
             EEPROM location (1 byte) out of a total of 256 bytes of
             user EEPROM, present in the MCP2200 device.
@@ -149,7 +168,7 @@ MCP2200 after exiting the Reset mode
         data[2] = EEP_Val
         self.write(data)
 
-    def read_all(self):
+    def read_all(self, **kwargs):
         ''' This  command  is  used  to  retrieve  the  MCP2200’s NVRAM parameters.
 
         Response : ( EEP_Addr, EEP_Val, IO_bmap, Config_Alt_Pins, IO_Default_Val_bmap, Config_Alt_Options, Baud_H, Baud_L, IO_Port_Val_bmap)
@@ -177,4 +196,6 @@ MCP2200 after exiting the Reset mode
 if __name__ == '__main__':
     x = RawDevice()
 
+    config = x.read_all()
+    print(config)
 

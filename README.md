@@ -22,7 +22,7 @@ except:
     sys.exit('Cannot connect the device')
 
 try:
-    dev.set_clear_output(set_bmap=0x00, clear_bmap=0x00)
+    dev.set_clear_output(Set_bmap=0x00, Clear_bmap=0x00)
     dev.write_ee(0, 12)
     dev.read_ee(0)
 
