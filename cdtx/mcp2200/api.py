@@ -1,3 +1,6 @@
+from .device import RawDevice
+
+# Constants
 OFF = 0
 ON = 1
 TOGGLE = 3
@@ -5,27 +8,40 @@ BLINKSLOW = 4
 BLINKFAST = 5
 
 
-class SimpleIOClass():
+class SimpleIOClass(RawDevice):
     ''' Strange naming but that's how Microchip named it '''
+    def __init__(self):
+        BaseDevice.__init__(self, autoConnect=False)
 
-    def ClearPin():
+    def ClearPin(pin):
         ''' bool ClearPin(unsigned int pin) '''
-        pass
-    def ConfigureIO():
+        if pin < 0 or pin > 7:
+            return False
+        # Create the bitmap
+        bitmap = 1<<pin
+        # Submit it
+        self.set_clear_outputs({'Set_bmap':0, 'Clear_bmap':bitmap})
+        return True
+
+    def ConfigureIO(IOMap):
         ''' bool ConfigureIO(unsigned char IOMap) '''
-        pass
-    def ConfigureIoDefaultOutput():
+        config = self.read_all()
+        config['IO_bmap'] = IOMap
+        self.configure(**config)
+
+    def ConfigureIoDefaultOutput(ucIoMap, ucDefValue):
         ''' bool ConfigureIoDefaultOutput(unsigned char ucIoMap, unsigned char ucDefValue) '''
-        pass
+        config = self.read_all()
+        config['IO_bmap'] = ucIoMap
+        config['IO_Default_Val_bmap'] = ucDefValue
+        self.configure(**config)
+
     def ConfigureMCP2200():
         ''' bool ConfigureMCP2200(unsigned char IOMap, unsigned long BaudRateParam, unsigned int RxLEDMode, unsigned int TxLEDMode, bool FLOW, bool ULOAD,bool SSPND) '''
         pass
     def fnHardwareFlowControl():
         ''' bool fnHardwareFlowControl(unsigned int onOff) '''
         pass
-    def ClearPin():
-        ''' bool ClearPin(unsigned int pin) '''
-        pass 
     def fnRxLED():
         ''' bool fnRxLED(unsigned int mode) '''
         pass
@@ -53,12 +69,14 @@ class SimpleIOClass():
     def GetSelectedDeviceInfo():
         ''' String^ GetSelectedDeviceInfo(void) '''
         pass
-    def InitMCP2200():
+    def InitMCP2200(VendorID, ProductID):
         ''' void InitMCP2200(unsigned int VendorID, unsigned int ProductID) '''
-        pass
+        self.connect(VendorID, ProductID)
+
     def IsConnected():
         ''' bool IsConnected() '''
-        pass
+        return self.dev != None
+
     def ReadEEPROM():
         ''' int ReadEEPROM(unsigned int uiEEPAddress) '''
         pass
@@ -79,7 +97,14 @@ class SimpleIOClass():
         pass
     def SetPin():
         ''' bool SetPin(unsigned int pin) '''
-        pass
+        if pin < 0 or pin > 7:
+            return False
+        # Create the bitmap
+        bitmap = 1<<pin
+        # Submit it
+        self.set_clear_outputs({'Set_bmap':bitmap, 'Clear_bmap':0})
+        return True
+
     def WriteEEPROM():
         ''' int WriteEEPROM(unsigned int uiEEPAddress, unsigned char ucValue) '''
         pass

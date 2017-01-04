@@ -16,9 +16,9 @@ class BaseDevice():
             self.connect()
 
 
-    def connect(self):
+    def connect(self, pid=MCP2200_VID, vid=MCP2200_PID):
         # decimal vendor and product values
-        self.dev = usb.core.find(idVendor=MCP2200_VID, idProduct=MCP2200_PID)
+        self.dev = usb.core.find(idVendor=vid, idProduct=pid)
         if not self.dev:
             return False
 
@@ -99,8 +99,8 @@ class RawDevice(BaseDevice):
     @check_params('IO_bmap', 'Config_Alt_Pins', 'IO_Default_Val_bmap', 'Config_Alt_Options', 'Baud_H', 'Baud_L')
     def configure(self, **kwargs):
         ''' This  command  is  used  to  establish  the  configuration
-parameters  that  are  stored  in  NVRAM,  used  by  the
-MCP2200 after exiting the Reset mode
+            parameters  that  are  stored  in  NVRAM,  used  by  the
+            MCP2200 after exiting the Reset mode
 
             ===================     =============================================
             IO_bmap                 GPIO bitmap for pin assignment (input/output)
