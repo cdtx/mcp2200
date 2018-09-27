@@ -29,3 +29,6 @@ try:
 finally:
     mcp2200.disconnects
 ```
+
+# Problem with permissions
+    Read [this page](https://askubuntu.com/questions/112568/how-do-i-allow-a-non-default-user-to-use-serial-device-ttyusb0)to learn about how to make a USB device accessible for your user ID
