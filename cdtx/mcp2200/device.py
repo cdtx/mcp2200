@@ -10,6 +10,7 @@ MCP2200_HID_INTERFACE = 2
 
 
 class BaseDevice():
+    ''' This class only manages the actual USB connection '''
     def __init__(self, autoConnect=True):
         self.dev = None
         if autoConnect:
@@ -44,6 +45,12 @@ class BaseDevice():
             raise e
                 
         return True
+
+    def disconnect(self):
+        if self.dev:
+            usb.util.release_interface(self.dev, MCP2200_HID_INTERFACE)
+            usb.util.dispose_resources(self.dev)
+            dev = None
 
     def read(self):
         ret = self.dev.read(self.epIn.bEndpointAddress, 16)
@@ -191,10 +198,11 @@ class RawDevice(BaseDevice):
 
 
 if __name__ == '__main__':
-    x = RawDevice()
+    dev = RawDevice()
 
-    config = x.read_all()
+    config = dev.read_all()
     print(config)
     config['Config_Alt_Pins'] = 0x7F
-    x.configure(**config)
+    dev.configure(**config)
+    dev.disconnect()
 
