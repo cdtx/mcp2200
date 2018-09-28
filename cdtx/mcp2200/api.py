@@ -7,13 +7,12 @@ TOGGLE = 3
 BLINKSLOW = 4
 BLINKFAST = 5
 
-
 class SimpleIOClass(RawDevice):
     ''' Strange naming but that's how Microchip named it '''
     def __init__(self):
         BaseDevice.__init__(self, autoConnect=False)
 
-    def ClearPin(pin):
+    def ClearPin(self, pin):
         ''' bool ClearPin(unsigned int pin) '''
         if pin < 0 or pin > 7:
             return False
@@ -23,37 +22,84 @@ class SimpleIOClass(RawDevice):
         self.set_clear_outputs({'Set_bmap':0, 'Clear_bmap':bitmap})
         return True
 
-    def ConfigureIO(IOMap):
+    def ConfigureIO(self, IOMap):
         ''' bool ConfigureIO(unsigned char IOMap) '''
         config = self.read_all()
         config['IO_bmap'] = IOMap
-        self.configure(**config)
+        return self.configure(**config)
 
-    def ConfigureIoDefaultOutput(ucIoMap, ucDefValue):
+    def ConfigureIoDefaultOutput(self, ucIoMap, ucDefValue):
         ''' bool ConfigureIoDefaultOutput(unsigned char ucIoMap, unsigned char ucDefValue) '''
         config = self.read_all()
         config['IO_bmap'] = ucIoMap
         config['IO_Default_Val_bmap'] = ucDefValue
-        self.configure(**config)
+        return self.configure(**config)
 
-    def ConfigureMCP2200():
+    def ConfigureMCP2200(self, IOMap, BaudRateParam, RxLEDMode, TxLedMode, FLOW, ULOAD, SSPND):
         ''' bool ConfigureMCP2200(unsigned char IOMap, unsigned long BaudRateParam, unsigned int RxLEDMode, unsigned int TxLEDMode, bool FLOW, bool ULOAD,bool SSPND) '''
-        pass
-    def fnHardwareFlowControl():
+        ret = True
+        ret &= self.ConfigureIO(IOMap)
+        ret &= self.fnSetBaudRate(BaudRateParam)
+        ret &= self.fnRxLED(RxLEDMode)
+        ret &= self.fnTxLED(TxLEDMode)
+        ret &= self.fnHardwareFlowControl(FLOW)
+        ret &= self.fnULoad(ULOAD)
+        ret &= self.fnSuspend(SSPND)
+        return ret
+
+    def fnHardwareFlowControl(self, onOff):
         ''' bool fnHardwareFlowControl(unsigned int onOff) '''
-        pass
-    def fnRxLED():
+        config = self.read_all()
+        config['Config_Alt_Options'] &= 0xFE
+        config['Config_Alt_Options'] = (0x01 if onOff else 0x00) << 0
+        return self.configure(**config)
+
+    def fnRxLED(self, mode):
         ''' bool fnRxLED(unsigned int mode) '''
-        pass
+        if not mode in [OFF, TOGGLE, BLINKFAST, BLINKSLOW]:
+            return False
+
+        config = self.read_all()
+        if mode == OFF:
+            config['Config_Alt_Pins'] &= ~0x08
+        else:
+            config['Config_Alt_Pins'] |= 0x08
+            if mode == TOGGLE:
+                config['Config_Alt_Options'] |= 0x80
+            else:
+                config['Config_Alt_Options'] &= ~0x80
+                if mode == BLINKFAST:
+                    config['Config_Alt_Options'] &= ~0x20
+                elif mode == BLINKSLOW:
+                    config['Config_Alt_Options'] |= 0x20
+        return self.configure(**config)
+
     def fnSetBaudRate():
         ''' bool fnSetBaudRate(unsigned long BaudRateParam) '''
         pass
     def fnSuspend():
         ''' bool fnSuspend(unsigned int onOff) '''
         pass
-    def fnTxLED():
+    def fnTxLED(self, mode):
         ''' bool fnTxLED(unsigned int mode) '''
-        pass
+        if not mode in [OFF, TOGGLE, BLINKFAST, BLINKSLOW]:
+            return False
+
+        config = self.read_all()
+        if mode == OFF:
+            config['Config_Alt_Pins'] &= ~0x04
+        else:
+            config['Config_Alt_Pins'] |= 0x04
+            if mode == TOGGLE:
+                config['Config_Alt_Options'] |= 0x40
+            else:
+                config['Config_Alt_Options'] &= ~0x40
+                if mode == BLINKFAST:
+                    config['Config_Alt_Options'] &= ~0x20
+                elif mode == BLINKSLOW:
+                    config['Config_Alt_Options'] |= 0x20
+        return self.configure(**config)
+
     def fnULoad():
         ''' bool fnULoad(unsigned int onOff) '''
         pass
@@ -69,7 +115,7 @@ class SimpleIOClass(RawDevice):
     def GetSelectedDeviceInfo():
         ''' String^ GetSelectedDeviceInfo(void) '''
         pass
-    def InitMCP2200(VendorID, ProductID):
+    def InitMCP2200(self, VendorID, ProductID):
         ''' void InitMCP2200(unsigned int VendorID, unsigned int ProductID) '''
         self.connect(VendorID, ProductID)
 
@@ -111,11 +157,4 @@ class SimpleIOClass(RawDevice):
     def WritePort():
         ''' bool WritePort(unsigned int portValue) '''
         pass
-
-
-
-
-
-
-
 

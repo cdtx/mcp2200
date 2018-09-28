@@ -17,7 +17,7 @@ class BaseDevice():
             self.connect()
 
 
-    def connect(self, pid=MCP2200_VID, vid=MCP2200_PID):
+    def connect(self, vid=MCP2200_VID, pid=MCP2200_PID):
         # decimal vendor and product values
         self.dev = usb.core.find(idVendor=vid, idProduct=pid)
         if not self.dev:
@@ -44,7 +44,7 @@ class BaseDevice():
                 self.dev.attach_kernel_driver(MCP2200_HID_INTERFACE)
             raise e
                 
-        return True
+        return self.dev != None
 
     def disconnect(self):
         if self.dev:
@@ -57,7 +57,7 @@ class BaseDevice():
         return ret
 
     def write(self, data):
-        self.dev.write(self.epOut.bEndpointAddress, data)
+        return self.dev.write(self.epOut.bEndpointAddress, data) == len(data)
 
 def check_params(*params):
     def func_decorator(func):
