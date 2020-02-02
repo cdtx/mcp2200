@@ -31,7 +31,7 @@ finally:
 ```
 
 # Working Example 
-```
+``` python
 import sys
 from cdtx.mcp2200.device import RawDevice as mcp2200
 
