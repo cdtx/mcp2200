@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-import sys
+import sys,struct
 import usb
 import usb.core
 import usb.util
@@ -38,7 +38,7 @@ class BaseDevice():
         except Exception as e:
             # release the device
             usb.util.release_interface(self.dev, MCP2200_HID_INTERFACE)
-            if attach:
+            if self.attach:
                 # reattach the device to the OS kernel
                 self.dev.attach_kernel_driver(MCP2200_HID_INTERFACE)
             raise e
@@ -88,8 +88,6 @@ class RawDevice(BaseDevice):
             Clear_bmap  Bitmap for clearing the corresponding GPIOs
             ==========  ===========================================
         '''
-        checkParams(('Set_bmap', 'Clear_bmap'))
-
         data = [0]*16
         data[0] = 0x08
         data[11] = kwargs['Set_bmap']
@@ -164,6 +162,43 @@ MCP2200 after exiting the Reset mode
         data[1] = kwargs['EEP_Addr']
         data[2] = kwargs['EEP_Val']
         self.write(data)
+
+    @check_params('bytes')
+    def write_bytes(self, **kwargs):
+        ''' The  WRITE_BYTES  command  is  used  to a byestring
+            to EEPROM starting from location (0) out of a total of 256 bytes of
+            user EEPROM, present in the MCP2200 device.
+
+            ========    ===========================================================================================
+            bytes       This is the bytestring be written in the EEPROM memory. Max 256 bytes
+            ========    ===========================================================================================
+            '''
+        bytes = kwargs.get('bytes')
+        if type(bytes) == str:
+            bytes = [ord(a) for a in bytes]
+            print('converted to list')
+        if len(bytes)>256:
+            print('length exceeded. truncating.')
+            bytes = bytes[:256]
+        for a in range(len(bytes)):
+            v = bytes[a]
+            print('writing',v)
+            self.write_ee(EEP_Addr = a, EEP_Val = v)
+
+    @check_params('length')
+    def read_bytes(self, **kwargs):
+        ''' The  READ_BYTES  command  is  used read a byestring
+            from EEPROM starting from location (0) out of a total of 256 bytes of
+            user EEPROM, present in the MCP2200 device.
+
+            ========    ===========================================================================================
+            length      length of the bytestring be read from the EEPROM memory. Max 256 bytes
+            ========    ===========================================================================================
+            '''
+        bytes = []         
+        for a in range(kwargs.get('length')):
+            bytes.append(self.read_ee(EEP_Addr = a)['EEP_Val'])
+        return bytes
 
     def read_all(self, **kwargs):
         ''' This  command  is  used  to  retrieve  the  MCP2200’s NVRAM parameters.
