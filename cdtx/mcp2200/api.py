@@ -1,4 +1,5 @@
 from .device import RawDevice
+from .errors import *
 
 # Constants
 OFF = 0
@@ -51,7 +52,7 @@ class SimpleIOClass(RawDevice):
         ''' bool fnHardwareFlowControl(unsigned int onOff) '''
         config = self.read_all()
         config['Config_Alt_Options'] &= 0xFE
-        config['Config_Alt_Options'] = (0x01 if onOff else 0x00) << 0
+        config['Config_Alt_Options'] |= (0x01 if onOff else 0x00) << 0
         return self.configure(**config)
 
     def fnRxLED(self, mode):
@@ -74,12 +75,23 @@ class SimpleIOClass(RawDevice):
                     config['Config_Alt_Options'] |= 0x20
         return self.configure(**config)
 
-    def fnSetBaudRate():
+    def fnSetBaudRate(BaudRateParam):
         ''' bool fnSetBaudRate(unsigned long BaudRateParam) '''
-        pass
+        config = self.read_all()
+        baud_rate_divisor = (12000000/fnSetBaudRate) - 1
+        Baud_H = baud_rate_divisor // 2**8
+        Baud_L = baud_rate_divisor % 2**8
+        config['Baud_H'] = Baud_H
+        config['Baud_L'] = Baud_L
+        return self.configure(**config)
+
     def fnSuspend():
         ''' bool fnSuspend(unsigned int onOff) '''
-        pass
+        config = self.read_all()
+        config['Config_Alt_Pins'] &= ~(0x01 << 7)
+        config['Config_Alt_Pins'] |= (0x01 if onOff else 0x00) << 7
+        return self.configure(**config)
+
     def fnTxLED(self, mode):
         ''' bool fnTxLED(unsigned int mode) '''
         if not mode in [OFF, TOGGLE, BLINKFAST, BLINKSLOW]:
@@ -102,45 +114,80 @@ class SimpleIOClass(RawDevice):
 
     def fnULoad():
         ''' bool fnULoad(unsigned int onOff) '''
-        pass
+        config = self.read_all()
+        config['Config_Alt_Pins'] &= ~(0x01 << 6)
+        config['Config_Alt_Pins'] |= (0x01 if onOff else 0x00) << 6
+        return self.configure(**config)
+
     def GetDeviceInfo():
         ''' String^ GetDeviceInfo(unsigned int uiDeviceNo) '''
-        pass
+        return repr(self.dev)
+
     def GetNoOfDevices():
         ''' unsigned int GetNoOfDevices(void) '''
-        pass
+        return 1
+
     def GetSelectedDevice():
         ''' int GetSelectedDevice(void) '''
-        pass
+        return 0
+
     def GetSelectedDeviceInfo():
         ''' String^ GetSelectedDeviceInfo(void) '''
-        pass
+        return repr(self.dev)
+
     def InitMCP2200(self, VendorID, ProductID):
         ''' void InitMCP2200(unsigned int VendorID, unsigned int ProductID) '''
-        self.connect(VendorID, ProductID)
+        self.vid = VendorID
+        self.pid = ProductID
+        self.connect(self.vid, self.pid)
 
     def IsConnected():
         ''' bool IsConnected() '''
         return self.dev != None
 
-    def ReadEEPROM():
+    def ReadEEPROM(uiEEPAddress):
         ''' int ReadEEPROM(unsigned int uiEEPAddress) '''
-        pass
-    def ReadPin():
+        if 0 <= uiEEPAddress <= 256:
+            return self.read_ee(uiEEPAddress)['EEP_Addr']
+        else:
+            return E_WRONG_ADDRESS
+
+    def ReadPin(pin):
         ''' bool ReadPin(unsigned int pin, unsigned int *returnvalue) '''
-        pass
-    def ReadPinValue():
+        if 0 <= pin <= 7:
+            pins = self.read_all()['IO_Port_Val_bmap']
+            return (True, 1 if pins & (1<<pin) else 0)
+        else:
+            return (False, 0)
+
+    def ReadPinValue(pin):
         ''' int ReadPinValue(unsigned int pin) '''
-        pass
+        r,v = self.ReadPin(pin)
+        if r:
+            return v
+        else:
+            return 0x8000
+
     def ReadPort():
         ''' bool ReadPort(unsigned int *returnvalue) '''
-        pass
+        pins = self.read_all()['IO_Port_Val_bmap']
+        return (True, pins)
+
     def ReadPortValue():
         ''' int ReadPortValue() '''
-        pass
-    def SelectDevice():
+        r,v = self.ReadPort()
+        if r:
+            return v
+        else:
+            return 0x8000
+
+    def SelectDevice(uiDeviceNo):
         ''' int SelectDevice(unsigned int uiDeviceNo) '''
-        pass
+        if uiDeviceNo != 0:
+            return E_WRONG_DEVICE_ID
+        else:
+            return 0
+
     def SetPin():
         ''' bool SetPin(unsigned int pin) '''
         if pin < 0 or pin > 7:
@@ -151,10 +198,18 @@ class SimpleIOClass(RawDevice):
         self.set_clear_outputs({'Set_bmap':bitmap, 'Clear_bmap':0})
         return True
 
-    def WriteEEPROM():
+    def WriteEEPROM(uiEEPAddress, ucValue):
         ''' int WriteEEPROM(unsigned int uiEEPAddress, unsigned char ucValue) '''
-        pass
-    def WritePort():
+        if 0 <= uiEEPAddress <= 256:
+            self.write_ee({'EEP_Addr':uiEEPAddress, 'EEP_Val':ucValue})
+            return 0
+        else:
+            return E_WRONG_ADDRESS
+
+    def WritePort(portValue):
         ''' bool WritePort(unsigned int portValue) '''
-        pass
+        self.set_clear_outputs({'Set_bmap':portValue, 'Clear_bmap':~portValue})
+        return True
+        
+
 
