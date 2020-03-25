@@ -31,4 +31,14 @@ finally:
 ```
 
 # Problem with permissions
-    Read [this page](https://askubuntu.com/questions/112568/how-do-i-allow-a-non-default-user-to-use-serial-device-ttyusb0)to learn about how to make a USB device accessible for your user ID
+    Add the following rule to file /etc/udev/rules.d/50-myrules.rules (create if necessary)
+    ```
+    ATTRS{idVendor}=="04d8", ATTRS{idProduct}=="00df", GROUP:="plugdev", MODE="0660"
+    ```
+
+    The current user must belong to the __plugdev__ group
+    ```
+    sudo usermode -a -G plugdev ${USER}
+    ```
+
+    [Source](https://askubuntu.com/questions/112568/how-do-i-allow-a-non-default-user-to-use-serial-device-ttyusb0)
