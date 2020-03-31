@@ -1,5 +1,5 @@
-from .device import RawDevice
 from .errors import *
+from .device import MCP2200Device
 
 # Constants
 OFF = 0
@@ -8,10 +8,11 @@ TOGGLE = 3
 BLINKSLOW = 4
 BLINKFAST = 5
 
-class SimpleIOClass(RawDevice):
+class SimpleIOClass():
     ''' Strange naming but that's how Microchip named it '''
     def __init__(self):
-        BaseDevice.__init__(self, autoConnect=False)
+        self.devices = []
+        self.device = None
 
     def ClearPin(self, pin):
         ''' bool ClearPin(unsigned int pin) '''
@@ -75,7 +76,7 @@ class SimpleIOClass(RawDevice):
                     config['Config_Alt_Options'] |= 0x20
         return self.configure(**config)
 
-    def fnSetBaudRate(BaudRateParam):
+    def fnSetBaudRate(self, BaudRateParam):
         ''' bool fnSetBaudRate(unsigned long BaudRateParam) '''
         config = self.read_all()
         baud_rate_divisor = (12000000/fnSetBaudRate) - 1
@@ -85,7 +86,7 @@ class SimpleIOClass(RawDevice):
         config['Baud_L'] = Baud_L
         return self.configure(**config)
 
-    def fnSuspend():
+    def fnSuspend(self):
         ''' bool fnSuspend(unsigned int onOff) '''
         config = self.read_all()
         config['Config_Alt_Pins'] &= ~(0x01 << 7)
@@ -112,47 +113,53 @@ class SimpleIOClass(RawDevice):
                     config['Config_Alt_Options'] |= 0x20
         return self.configure(**config)
 
-    def fnULoad():
+    def fnULoad(self):
         ''' bool fnULoad(unsigned int onOff) '''
         config = self.read_all()
         config['Config_Alt_Pins'] &= ~(0x01 << 6)
         config['Config_Alt_Pins'] |= (0x01 if onOff else 0x00) << 6
         return self.configure(**config)
 
-    def GetDeviceInfo():
+    def GetDeviceInfo(self, uiDeviceNo):
         ''' String^ GetDeviceInfo(unsigned int uiDeviceNo) '''
-        return repr(self.dev)
+        if self.devices:
+            if uiDeviceNo < len(self.devices):
+                return self.devices[uiDeviceNo].path()
+            else:
+                return 'Device Index Error'
+        else:
+            return 'Device Not Connected'
 
-    def GetNoOfDevices():
+    def GetNoOfDevices(self):
         ''' unsigned int GetNoOfDevices(void) '''
-        return 1
+        return len(self.devices)
 
-    def GetSelectedDevice():
+    def GetSelectedDevice(self):
         ''' int GetSelectedDevice(void) '''
-        return 0
+        return self.devices.index(self.device)
 
-    def GetSelectedDeviceInfo():
+    def GetSelectedDeviceInfo(self):
         ''' String^ GetSelectedDeviceInfo(void) '''
-        return repr(self.dev)
+        return self.device.path()
 
     def InitMCP2200(self, VendorID, ProductID):
         ''' void InitMCP2200(unsigned int VendorID, unsigned int ProductID) '''
         self.vid = VendorID
         self.pid = ProductID
-        self.connect(self.vid, self.pid)
+        self.devices = MCP2200Device.discover(self.vid, self.pid)
 
-    def IsConnected():
+    def IsConnected(self):
         ''' bool IsConnected() '''
-        return self.dev != None
+        return self.device != None
 
-    def ReadEEPROM(uiEEPAddress):
+    def ReadEEPROM(self, uiEEPAddress):
         ''' int ReadEEPROM(unsigned int uiEEPAddress) '''
         if 0 <= uiEEPAddress <= 256:
-            return self.read_ee(uiEEPAddress)['EEP_Addr']
+            return self.device.read_ee(**{'EEP_Addr':uiEEPAddress})['EEP_Val']
         else:
             return E_WRONG_ADDRESS
 
-    def ReadPin(pin):
+    def ReadPin(self, pin):
         ''' bool ReadPin(unsigned int pin, unsigned int *returnvalue) '''
         if 0 <= pin <= 7:
             pins = self.read_all()['IO_Port_Val_bmap']
@@ -160,7 +167,7 @@ class SimpleIOClass(RawDevice):
         else:
             return (False, 0)
 
-    def ReadPinValue(pin):
+    def ReadPinValue(self, pin):
         ''' int ReadPinValue(unsigned int pin) '''
         r,v = self.ReadPin(pin)
         if r:
@@ -168,12 +175,12 @@ class SimpleIOClass(RawDevice):
         else:
             return 0x8000
 
-    def ReadPort():
+    def ReadPort(self):
         ''' bool ReadPort(unsigned int *returnvalue) '''
         pins = self.read_all()['IO_Port_Val_bmap']
         return (True, pins)
 
-    def ReadPortValue():
+    def ReadPortValue(self):
         ''' int ReadPortValue() '''
         r,v = self.ReadPort()
         if r:
@@ -181,14 +188,18 @@ class SimpleIOClass(RawDevice):
         else:
             return 0x8000
 
-    def SelectDevice(uiDeviceNo):
+    def SelectDevice(self, uiDeviceNo):
         ''' int SelectDevice(unsigned int uiDeviceNo) '''
-        if uiDeviceNo != 0:
-            return E_WRONG_DEVICE_ID
-        else:
+        if uiDeviceNo < len(self.devices):
+            if self.device:
+                self.device.disconnect()
+            self.device = MCP2200Device()
+            self.device.connect(self.vid, self.pid, uiDeviceNo)
             return 0
+        else:
+            return E_WRONG_DEVICE_ID
 
-    def SetPin():
+    def SetPin(self, pin):
         ''' bool SetPin(unsigned int pin) '''
         if pin < 0 or pin > 7:
             return False
@@ -198,15 +209,15 @@ class SimpleIOClass(RawDevice):
         self.set_clear_outputs({'Set_bmap':bitmap, 'Clear_bmap':0})
         return True
 
-    def WriteEEPROM(uiEEPAddress, ucValue):
+    def WriteEEPROM(self, uiEEPAddress, ucValue):
         ''' int WriteEEPROM(unsigned int uiEEPAddress, unsigned char ucValue) '''
-        if 0 <= uiEEPAddress <= 256:
-            self.write_ee({'EEP_Addr':uiEEPAddress, 'EEP_Val':ucValue})
+        if 0 <= uiEEPAddress <= 255:
+            self.device.write_ee(**{'EEP_Addr':uiEEPAddress, 'EEP_Val':ucValue})
             return 0
         else:
             return E_WRONG_ADDRESS
 
-    def WritePort(portValue):
+    def WritePort(self, portValue):
         ''' bool WritePort(unsigned int portValue) '''
         self.set_clear_outputs({'Set_bmap':portValue, 'Clear_bmap':~portValue})
         return True

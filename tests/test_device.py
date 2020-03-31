@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import pytest
 
-from cdtx.mcp2200.device import BaseDevice
+from cdtx.mcp2200.device import *
 
 class TestBaseDevice():
     def test_discover(self):
@@ -11,7 +11,9 @@ class TestBaseDevice():
 
     def test_connect_disconnect(self):
         dev = BaseDevice()
-        assert(dev.connect(0))
+        assert(dev.connect(MCP2200_VID, MCP2200_PID, 0))
+        assert(dev.disconnect())
+        assert(dev.connect())
         assert(dev.disconnect())
 
 

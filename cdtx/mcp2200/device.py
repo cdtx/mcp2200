@@ -11,15 +11,26 @@ MCP2200_HID_INTERFACE = 2
 
 class BaseDevice():
     ''' This class only manages the actual USB connection '''
-    def __init__(self, autoConnect=True):
-        self.dev = None
+    def __init__(self, dev=None, autoConnect=False):
+        self.dev = dev
         if autoConnect:
             self.connect()
 
+    @classmethod
+    def discover(cls, vid=MCP2200_VID, pid=MCP2200_PID):
+        return [cls(dev) for dev in usb.core.find(find_all=True, idVendor=vid, idProduct=pid)]
 
-    def connect(self, vid=MCP2200_VID, pid=MCP2200_PID):
+    def path(self):
+        return repr(self.dev)
+
+    def __eq__(self, other):
+        if other is None:
+            return False
+        return self.path() == other.path()
+
+    def connect(self, vid=MCP2200_VID, pid=MCP2200_PID, deviceId=0):
         # decimal vendor and product values
-        self.dev = usb.core.find(idVendor=vid, idProduct=pid)
+        self.dev = [dev for dev in usb.core.find(find_all=True, idVendor=vid, idProduct=pid)][deviceId]
         if not self.dev:
             return False
 
@@ -39,7 +50,7 @@ class BaseDevice():
         except Exception as e:
             # release the device
             usb.util.release_interface(self.dev, MCP2200_HID_INTERFACE)
-            if attach:
+            if self.attach:
                 # reattach the device to the OS kernel
                 self.dev.attach_kernel_driver(MCP2200_HID_INTERFACE)
             raise e
@@ -48,9 +59,14 @@ class BaseDevice():
 
     def disconnect(self):
         if self.dev:
-            usb.util.release_interface(self.dev, MCP2200_HID_INTERFACE)
-            usb.util.dispose_resources(self.dev)
-            dev = None
+            try:
+                usb.util.release_interface(self.dev, MCP2200_HID_INTERFACE)
+                usb.util.dispose_resources(self.dev)
+                self.dev = None
+                return True
+            except:
+                return False
+        return True
 
     def read(self):
         ret = self.dev.read(self.epIn.bEndpointAddress, 16)
@@ -69,7 +85,7 @@ def check_params(*params):
         return func_wrapper
     return func_decorator
 
-class RawDevice(BaseDevice):
+class MCP2200Device(BaseDevice):
     ''' Implements the basic supported HID commands :
         - SET_CLEAR_OUTPUTS
         - CONFIGURE
