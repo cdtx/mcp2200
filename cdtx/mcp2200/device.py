@@ -111,8 +111,6 @@ class MCP2200Device(BaseDevice):
             Clear_bmap  Bitmap for clearing the corresponding GPIOs
             ==========  ===========================================
         '''
-        checkParams(('Set_bmap', 'Clear_bmap'))
-
         data = [0]*16
         data[0] = 0x08
         data[11] = kwargs['Set_bmap']
@@ -208,8 +206,8 @@ class MCP2200Device(BaseDevice):
         data = [0]*16
         data[0] = 0x80
         self.write(data)
-        r = self.read()
-        return {key:r[value] for (key, value) in {'EEP_Addr':1, 'EEP_Val':3, 'IO_bmap':4, 'Config_Alt_Pins':5, 'IO_Default_Val_bmap':6, 'Config_Alt_Options':7, 'Baud_H':8, 'Baud_L':9, 'IO_Port_Val_bmap':10}.items()}
+        ret = self.read()
+        return {key:ret[value] for (key, value) in {'EEP_Addr':1, 'EEP_Val':3, 'IO_bmap':4, 'Config_Alt_Pins':5, 'IO_Default_Val_bmap':6, 'Config_Alt_Options':7, 'Baud_H':8, 'Baud_L':9, 'IO_Port_Val_bmap':10}.items()}
 
 
 

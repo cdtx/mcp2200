@@ -21,23 +21,23 @@ class SimpleIOClass():
         # Create the bitmap
         bitmap = 1<<pin
         # Submit it
-        self.set_clear_outputs({'Set_bmap':0, 'Clear_bmap':bitmap})
+        self.device.set_clear_outputs(**{'Set_bmap':0, 'Clear_bmap':bitmap})
         return True
 
     def ConfigureIO(self, IOMap):
         ''' bool ConfigureIO(unsigned char IOMap) '''
-        config = self.read_all()
+        config = self.device.read_all()
         config['IO_bmap'] = IOMap
-        return self.configure(**config)
+        return self.device.configure(**config)
 
     def ConfigureIoDefaultOutput(self, ucIoMap, ucDefValue):
         ''' bool ConfigureIoDefaultOutput(unsigned char ucIoMap, unsigned char ucDefValue) '''
-        config = self.read_all()
+        config = self.device.read_all()
         config['IO_bmap'] = ucIoMap
         config['IO_Default_Val_bmap'] = ucDefValue
-        return self.configure(**config)
+        return self.device.configure(**config)
 
-    def ConfigureMCP2200(self, IOMap, BaudRateParam, RxLEDMode, TxLedMode, FLOW, ULOAD, SSPND):
+    def ConfigureMCP2200(self, IOMap, BaudRateParam, RxLEDMode, TxLEDMode, FLOW, ULOAD, SSPND):
         ''' bool ConfigureMCP2200(unsigned char IOMap, unsigned long BaudRateParam, unsigned int RxLEDMode, unsigned int TxLEDMode, bool FLOW, bool ULOAD,bool SSPND) '''
         ret = True
         ret &= self.ConfigureIO(IOMap)
@@ -51,17 +51,17 @@ class SimpleIOClass():
 
     def fnHardwareFlowControl(self, onOff):
         ''' bool fnHardwareFlowControl(unsigned int onOff) '''
-        config = self.read_all()
+        config = self.device.read_all()
         config['Config_Alt_Options'] &= 0xFE
         config['Config_Alt_Options'] |= (0x01 if onOff else 0x00) << 0
-        return self.configure(**config)
+        return self.device.configure(**config)
 
     def fnRxLED(self, mode):
         ''' bool fnRxLED(unsigned int mode) '''
         if not mode in [OFF, TOGGLE, BLINKFAST, BLINKSLOW]:
             return False
 
-        config = self.read_all()
+        config = self.device.read_all()
         if mode == OFF:
             config['Config_Alt_Pins'] &= ~0x08
         else:
@@ -74,31 +74,31 @@ class SimpleIOClass():
                     config['Config_Alt_Options'] &= ~0x20
                 elif mode == BLINKSLOW:
                     config['Config_Alt_Options'] |= 0x20
-        return self.configure(**config)
+        return self.device.configure(**config)
 
     def fnSetBaudRate(self, BaudRateParam):
         ''' bool fnSetBaudRate(unsigned long BaudRateParam) '''
-        config = self.read_all()
-        baud_rate_divisor = (12000000/fnSetBaudRate) - 1
+        config = self.device.read_all()
+        baud_rate_divisor = (12000000//BaudRateParam) - 1
         Baud_H = baud_rate_divisor // 2**8
-        Baud_L = baud_rate_divisor % 2**8
+        Baud_L = baud_rate_divisor % (2**8)
         config['Baud_H'] = Baud_H
         config['Baud_L'] = Baud_L
-        return self.configure(**config)
+        return self.device.configure(**config)
 
-    def fnSuspend(self):
+    def fnSuspend(self, onOff):
         ''' bool fnSuspend(unsigned int onOff) '''
-        config = self.read_all()
+        config = self.device.read_all()
         config['Config_Alt_Pins'] &= ~(0x01 << 7)
         config['Config_Alt_Pins'] |= (0x01 if onOff else 0x00) << 7
-        return self.configure(**config)
+        return self.device.configure(**config)
 
     def fnTxLED(self, mode):
         ''' bool fnTxLED(unsigned int mode) '''
         if not mode in [OFF, TOGGLE, BLINKFAST, BLINKSLOW]:
             return False
 
-        config = self.read_all()
+        config = self.device.read_all()
         if mode == OFF:
             config['Config_Alt_Pins'] &= ~0x04
         else:
@@ -111,14 +111,14 @@ class SimpleIOClass():
                     config['Config_Alt_Options'] &= ~0x20
                 elif mode == BLINKSLOW:
                     config['Config_Alt_Options'] |= 0x20
-        return self.configure(**config)
+        return self.device.configure(**config)
 
-    def fnULoad(self):
+    def fnULoad(self, onOff):
         ''' bool fnULoad(unsigned int onOff) '''
-        config = self.read_all()
+        config = self.device.read_all()
         config['Config_Alt_Pins'] &= ~(0x01 << 6)
         config['Config_Alt_Pins'] |= (0x01 if onOff else 0x00) << 6
-        return self.configure(**config)
+        return self.device.configure(**config)
 
     def GetDeviceInfo(self, uiDeviceNo):
         ''' String^ GetDeviceInfo(unsigned int uiDeviceNo) '''
@@ -162,7 +162,7 @@ class SimpleIOClass():
     def ReadPin(self, pin):
         ''' bool ReadPin(unsigned int pin, unsigned int *returnvalue) '''
         if 0 <= pin <= 7:
-            pins = self.read_all()['IO_Port_Val_bmap']
+            pins = self.device.read_all()['IO_Port_Val_bmap']
             return (True, 1 if pins & (1<<pin) else 0)
         else:
             return (False, 0)
@@ -177,7 +177,7 @@ class SimpleIOClass():
 
     def ReadPort(self):
         ''' bool ReadPort(unsigned int *returnvalue) '''
-        pins = self.read_all()['IO_Port_Val_bmap']
+        pins = self.device.read_all()['IO_Port_Val_bmap']
         return (True, pins)
 
     def ReadPortValue(self):
@@ -206,21 +206,27 @@ class SimpleIOClass():
         # Create the bitmap
         bitmap = 1<<pin
         # Submit it
-        self.set_clear_outputs({'Set_bmap':bitmap, 'Clear_bmap':0})
+        self.device.set_clear_outputs(**{'Set_bmap':bitmap, 'Clear_bmap':0})
         return True
 
     def WriteEEPROM(self, uiEEPAddress, ucValue):
         ''' int WriteEEPROM(unsigned int uiEEPAddress, unsigned char ucValue) '''
-        if 0 <= uiEEPAddress <= 255:
-            self.device.write_ee(**{'EEP_Addr':uiEEPAddress, 'EEP_Val':ucValue})
-            return 0
-        else:
+        if not 0 <= uiEEPAddress <= 255:
             return E_WRONG_ADDRESS
+            
+        if not 0 <= ucValue <= 255:
+            return E_CANNOT_SEND_DATA
+
+        self.device.write_ee(**{'EEP_Addr':uiEEPAddress, 'EEP_Val':ucValue})
+        return 0
 
     def WritePort(self, portValue):
         ''' bool WritePort(unsigned int portValue) '''
-        self.set_clear_outputs({'Set_bmap':portValue, 'Clear_bmap':~portValue})
-        return True
+        if 0x00 <= portValue <= 0xff:
+            self.device.set_clear_outputs(**{'Set_bmap':portValue, 'Clear_bmap':~portValue & 0xff})
+            return True
+        else:
+            return False
         
 
 
