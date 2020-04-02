@@ -2,6 +2,7 @@ Drive the MCP2200 with python
 ==============================
 
 MCP2200 is the Microchip USB-Serial transceiver. [Datasheet](http://www.microchip.com/wwwproducts/en/en546923)
+
 The USB link is also used to configure the device, and, as a bonus, to easily manage some GPIO and EEPROM on the device.
 
 When connected to a computer, it creates 2 new USB devices
@@ -53,6 +54,7 @@ assert dev.IsConnected() == True
 # Set all pins as outputs
 dev.ConfigureIO(0x00)
 dev.SetPin(0)
+assert dev.ReadPinValue(0) == 1
 
 ```
 
