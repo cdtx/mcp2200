@@ -1,8 +1,12 @@
 from PySide2 import QtCore
 from PySide2 import QtGui
 from PySide2 import QtWidgets
+from PySide2.QtCore import SIGNAL, Signal, Slot, QObject
 from PySide2.QtWidgets import QHBoxLayout, QVBoxLayout, QGridLayout
 
+from cdtx.mcp2200.device import MCP2200_VID, MCP2200_PID
+import cdtx.mcp2200.api
+from cdtx.mcp2200.api import SimpleIOClass
 
 class EasyLayoutWidget(QtWidgets.QWidget):
     __layouts = []
@@ -24,10 +28,88 @@ class EasyLayoutWidget(QtWidgets.QWidget):
 class MCP2200Widget(EasyLayoutWidget):
     def __init__(self, *args, **kwargs):
         super(MCP2200Widget, self).__init__(*args, **kwargs)
+        self.build_gui()
 
+        self.mcp2200 = SimpleIOClass()
+        self.mcp2200.InitMCP2200(MCP2200_VID, MCP2200_PID)
+        self.update_devices_list()
+        self.mcp2200.SelectDevice(0)
+        self.load_device()
+
+    def update_devices_list(self):
+        lst = QtCore.QStringListModel()
+        lst.setStringList([self.mcp2200.GetDeviceInfo(x) for x in range(self.mcp2200.GetNoOfDevices())])
+        self.lv_devices.setModel(lst)
+
+    @Slot(int)
+    def select_device(self, index):
+        self.mcp2200.SelectDevice(index.row())
+        self.load_device()
+        
+    def load_device(self):
+        config = self.mcp2200.device.read_all()
+        self.io_config.setText('{0:08b}'.format(config['IO_bmap']))
+        self.output_default.setText('{0:08b}'.format(config['IO_Default_Val_bmap']))
+
+        divisor = config['Baud_H']*256 + config['Baud_L']
+        baud_rate = 12000000 / (divisor+1)
+        rates = []
+        for i in range(self.baud_rate.count()):
+            rates.append(abs(int(self.baud_rate.itemText(i)) - baud_rate))
+
+        self.baud_rate.setCurrentIndex(rates.index(min(rates)))
+
+        self.enable_cts_rts_pins.setChecked(config['Config_Alt_Options'] & 0x01)
+        self.enable_rx_led.setChecked(config['Config_Alt_Pins'] & 0x08)
+        self.enable_tx_led.setChecked(config['Config_Alt_Pins'] & 0x04)
+        self.enable_usbcfg_pin.setChecked(config['Config_Alt_Pins'] & 0x40)
+        self.enable_suspend_pin.setChecked(config['Config_Alt_Pins'] & 0x80)
+        # self.invert_uart_polarity.setChecked(config['Config_Alt_Options'] & 0x02)
+        self.rb_leds_blink.setChecked(config['Config_Alt_Options'] & 0x80 == 0x00)
+        self.rb_leds_toggle.setChecked(config['Config_Alt_Options'] & 0x80 == 0x80)
+        self.rb_leds_100ms.setChecked(config['Config_Alt_Options'] & 0x20 == 0x00)
+        self.rb_leds_200ms.setChecked(config['Config_Alt_Options'] & 0x20 == 0x20)
+    
+    @Slot(int)
+    def configure_device(self, *args, **kwargs):
+        self.mcp2200.ConfigureIoDefaultOutput(int(self.io_config.text(), 2), int(self.output_default.text(), 2))
+
+        self.mcp2200.fnSetBaudRate(int(self.baud_rate.currentText()))
+        self.mcp2200.fnHardwareFlowControl(self.enable_cts_rts_pins.isChecked())
+        if self.enable_rx_led.isChecked():
+            if self.rb_leds_toggle.isChecked():
+                self.mcp2200.fnRxLED(cdtx.mcp2200.api.TOGGLE)
+            elif self.rb_leds_blink.isChecked():
+                if self.rb_leds_100ms.isChecked():
+                    self.mcp2200.fnRxLED(cdtx.mcp2200.api.BLINKFAST)
+                else:
+                    self.mcp2200.fnRxLED(cdtx.mcp2200.api.BLINKSLOW)
+        else:
+            self.mcp2200.fnRxLED(cdtx.mcp2200.api.OFF)
+
+        if self.enable_tx_led.isChecked():
+            if self.rb_leds_toggle.isChecked():
+                self.mcp2200.fnTxLED(cdtx.mcp2200.api.TOGGLE)
+            elif self.rb_leds_blink.isChecked():
+                if self.rb_leds_100ms.isChecked():
+                    self.mcp2200.fnTxLED(cdtx.mcp2200.api.BLINKFAST)
+                else:
+                    self.mcp2200.fnTxLED(cdtx.mcp2200.api.BLINKSLOW)
+        else:
+            self.mcp2200.fnTxLED(cdtx.mcp2200.api.OFF)
+
+        self.mcp2200.fnULoad(self.enable_usbcfg_pin.isChecked())
+        self.mcp2200.fnSuspend(self.enable_suspend_pin.isChecked())
+
+        self.load_device()
+
+
+    def build_gui(self):
         # Detected devices
         self.lv_devices = QtWidgets.QListView()
         self.lv_devices.setMinimumHeight(50)
+        self.lv_devices.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
+        self.lv_devices.activated.connect(self.select_device)
         self.l_00.addWidget(self.lv_devices)
 
 
@@ -64,16 +146,17 @@ class MCP2200Widget(EasyLayoutWidget):
 
 
         self.baud_rate = QtWidgets.QComboBox()
-        self.baud_rate.addItems(['50', '300', '600', '1200', '2400', '4800', '9600', '19200', '38400', '57600', '115200'])
+        self.baud_rate.addItems(['300', '600', '1200', '2400', '4800', '9600', '19200', '38400', '57600', '115200'])
         self.l_112.addWidget(self.baud_rate, 0, 0)
         self.l_112.addWidget(QtWidgets.QLabel('Baud Rate'), 0, 1)
 
         for _index, (_name, _value) in enumerate((
-            ('enable_tx_rx_leds',    QtWidgets.QCheckBox('Enable Tx/Rx LEDs')),
+            ('enable_tx_led',    QtWidgets.QCheckBox('Enable Tx LED')),
+            ('enable_rx_led',    QtWidgets.QCheckBox('Enable Rx LED')),
             ('enable_cts_rts_pins',  QtWidgets.QCheckBox('Enable CTS/RTS Pins')),
             ('enable_usbcfg_pin',    QtWidgets.QCheckBox('Enable USBCFG Pin')),
             ('enable_suspend_pin',   QtWidgets.QCheckBox('Enable Suspend Pin')),
-            ('invert_uart_polarity', QtWidgets.QCheckBox('Invert UART Polarity (UPOL)')),
+            # ('invert_uart_polarity', QtWidgets.QCheckBox('Invert UART Polarity (UPOL)')),
         )):
             setattr(self, _name, _value)
             self.l_112.addWidget(getattr(self, _name), _index+1, 0, columnSpan=2)
@@ -119,7 +202,10 @@ class MCP2200Widget(EasyLayoutWidget):
         self.txt_logs.setFixedHeight(250)
         self.l_14.addWidget(self.txt_logs)
 
-        
+        # Buttons
+        self.bp_configure = QtWidgets.QPushButton('Configure')
+        self.bp_configure.clicked.connect(self.configure_device)
+        self.l_15.addWidget(self.bp_configure)
 
 
 
@@ -152,6 +238,9 @@ class MCP2200Widget(EasyLayoutWidget):
                 ],
                 # Logs
                 ['l_14', QVBoxLayout, []
+                ],
+                # Butons
+                ['l_15', QHBoxLayout, []
                 ],
             ]
         ]]
