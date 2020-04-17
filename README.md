@@ -19,6 +19,14 @@ This project implements the microchip specifications at 3 levels :
 - The USB HID specification
 - The API as described in the component's datasheet
 
+# Install
+``` bash
+git clone https://github.com/cdtx/mcp2200.git
+cd mcp2200
+pip install -r requirements.txt
+python setup install
+```
+
 # GUI
 ![GUI](gui.png)
 
