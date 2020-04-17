@@ -14,10 +14,13 @@ BUT... it's pure Windows !!
 
 Thanksfully, Microchip delivers this document as well : [The fully documented HID protocol](http://ww1.microchip.com/downloads/en/DeviceDoc/93066A.pdf)
 
-This project implements the microchip specifications at 2 levels :
+This project implements the microchip specifications at 3 levels :
+- The graphical configuration tool
 - The USB HID specification
 - The API as described in the component's datasheet
 
+# GUI
+![GUI](gui.png)
 
 # Example at USB HID level
 ``` python

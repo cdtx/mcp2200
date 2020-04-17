@@ -136,8 +136,10 @@ class MCP2200Widget(EasyLayoutWidget):
 
         self.rb_leds_blink = QtWidgets.QRadioButton('Blink LEDs')
         self.rb_leds_toggle = QtWidgets.QRadioButton('Toggle LEDs')
+
         self.rb_leds_100ms = QtWidgets.QRadioButton('100 ms')
         self.rb_leds_200ms = QtWidgets.QRadioButton('200 ms')
+
         self.gl_leds_11.addWidget(self.rb_leds_blink)
         self.gl_leds_11.addWidget(self.rb_leds_toggle)
         self.gl_leds_12.addWidget(self.rb_leds_100ms)
